@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<title>Canvas Paint App</title>
+	 <style>
+      body {
+         background: #eeeeee;
+         font-family: tahoma, verdana, sans serif;
+      }
+
+      #mainCanvas {
+         background: #ffffff;
+         position:absolute;
+         z-index: 0;
+         left: 10px;
+         top: 10px;
+         box-shadow: 4px 4px 8px rgba(0,0,0,0.5);
+      }
+      
+      
+       #controls {
+         position: absolute;
+          z-index: 2;
+         left: 25px;
+         top: 25px;
+      }
+      
+      label{
+      	font-size: 12px;
+      	margin-right:0.75em;
+      }
+	  
+	 </style>
+	
+	<script src="/socket.io/socket.io.js"></script>
+    
+	<script>
+	
+		var draws = {};
+		//Imagine an object inside of draws to look like {x: 10, y: 10, width: 10, height: 10}
+		var socket;
+		var dragging;
+		var username;
+		var canvas;
+		var ctx;
+		
+		function init()
+		{
+			socket = io.connect();
+			canvas = document.querySelector("#mainCanvas")
+			ctx = this.canvas.getContext('2d');
+			
+			canvas.onmousedown = doMousedown;
+			canvas.onmousemove = doMousemove;
+			canvas.onmouseup = doMouseup;
+			
+			var p = Math.floor(Math.random() * 100 + 1);
+			username = "user" + p;
+			socket.emit('join', {username: username});
+			
+			drawGrid(ctx, 'lightgray', 10, 10);
+		
+			enableListeners();
+			doClear();
+		}
+			
+		function enableListeners() {
+			socket.on('joined', function(data) {
+				console.log(data.Msg);
+			});
+			
+			socket.on('drawline', function(data) {
+				handleMessage(data);
+				
+			});
+		}
+		
+		function draw(data)
+		{
+			doClear();
+			
+			var keys = Object.keys(draws);
+			
+			for(var i = 0; i < keys.length; i++)
+			{
+				var drawCall = draws[keys[i]];
+				
+				ctx.save();
+				if(drawCall.user !== username)
+				{
+					ctx.fillStyle = "black";
+				}
+				ctx.fillRect(drawCall.x, drawCall.y, 10, 10);
+				ctx.restore();
+				
+			};
+		}
+		
+		function doMousedown(e)
+		{
+			console.log(e.type);
+		
+			dragging = true;
+		}
+	
+		function doMouseup(e) 
+		{
+			console.log(e.type);
+			dragging = false;
+		}
+ 
+		//HELPER FUNCTIONS
+		function doMousemove(e) 
+		{
+ 		
+			if(!dragging) return;
+		
+			var mouse = getMouse(e);
+		
+			socket.emit("draw",{x:mouse.x,y:mouse.y});
+		}
+		
+		function getMouse(e){
+			var mouse = {}
+			mouse.x = e.pageX - e.target.offsetLeft;
+			mouse.y = e.pageY - e.target.offsetTop;
+			return mouse;
+		}
+		
+		function doClear()
+		{
+			ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+			drawGrid(ctx,'lightgray', 10, 10);
+		}
+		
+		function handleMessage(data)
+		{
+			draws[data.time] = data;
+			draw(data);
+		}
+		
+		function drawGrid(ctx, color, cellWidth, cellHeight){
+		// save the current drawing state as it existed before this function was called
+		ctx.save()
+		
+		// set some drawing state variables
+		ctx.strokeStyle = color;
+		ctx.fillStyle = '#ffffff';
+		ctx.lineWidth = 0.5;
+		ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+		
+		// vertical lines all set!
+		for (var x = cellWidth + 0.5; x < ctx.canvas.width; x += cellWidth) {
+			ctx.beginPath();
+			ctx.moveTo(x, 0);
+			ctx.lineTo(x, ctx.canvas.height);
+			ctx.stroke();
+		}
+		
+		/*
+			Need horizontal lines!
+			You write it!
+		*/
+		for (var x = cellHeight + 0.5; x < ctx.canvas.height; x += cellHeight) {
+			ctx.beginPath();
+			ctx.moveTo(0, x);
+			ctx.lineTo(ctx.canvas.width, x);
+			ctx.stroke();
+		}
+		// restore the drawing state
+		ctx.restore();
+	}
+			
+		
+		window.onload = init;
+		
+		
+	
+	
+	
+
+	
+	</script>
+</head>
+<body>
+	<canvas id="mainCanvas" width="700" height="500">
+	Get a real browser!
+	</canvas>
+	
+</body>
+</html>
